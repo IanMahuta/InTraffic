@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import android.widget.Gallery;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 import android.graphics.drawable.Drawable;
 
@@ -21,8 +22,9 @@ import java.util.ArrayList;
 public class GamePlayActivity extends Activity implements SimpleGestureFilter.SimpleGestureListener{
 
     private SimpleGestureFilter detector;
-    LinearLayout mLinearLayout;
+    RelativeLayout mLinearLayout;
     ImageView danny;
+    ImageView road;
     ArrayList<ImageView> cars = new ArrayList<ImageView>();
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -35,8 +37,9 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         detector.setSwipeMinDistance(100);
         detector.setSwipeMinVelocity(20);
 
-        mLinearLayout = new LinearLayout(this);
+        mLinearLayout = new RelativeLayout(this);
         Resources res = this.getApplicationContext().getResources();
+        Drawable roadImage = res.getDrawable(R.drawable.road);
         Drawable dannyImage = res.getDrawable(R.drawable.danny);
         Drawable carImage = res.getDrawable(R.drawable.car);
 
@@ -46,6 +49,13 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         display.getSize(size);
         int width = size.x;
         int height = size.y;
+
+        road = new ImageView(this);
+        road.setImageDrawable(roadImage);
+        road.setAdjustViewBounds(true); // set the ImageView bounds to match the Drawable's dimensions
+        road.setLayoutParams(new Gallery.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        mLinearLayout.addView(road);
 
         danny = new ImageView(this);
         danny.setImageDrawable(dannyImage);
@@ -58,7 +68,7 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
 
         System.out.println("DANNY HEIGHT:                     " + d.getIntrinsicHeight());
         System.out.println("frame height:                " + height);
-        danny.setY(height-d.getIntrinsicHeight());
+        danny.setY(height - d.getIntrinsicHeight());
         for(int i = 0; i < 3; i++) {
             ImageView car = new ImageView(this);
             car.setImageDrawable(carImage);
@@ -67,6 +77,7 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
                     ViewGroup.LayoutParams.WRAP_CONTENT));
             cars.add(car);
             mLinearLayout.addView(car);
+            car.setX(car.getX() + 300*i);
         }
 
         // Add the ImageView to the layout and set the layout as the content view
@@ -114,8 +125,8 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
                         e.printStackTrace();
                     }
                     if (car.getY() > height) {
-                        cars.remove(car);
-                        hasCars = !cars.isEmpty();
+                      //  cars.remove(car);
+                     //   hasCars = !cars.isEmpty();
                     }
                 }
             }
@@ -142,21 +153,21 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         System.out.println("SWIPE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         switch (direction) {
 
-            case SimpleGestureFilter.SWIPE_RIGHT : str = "Swipe Right";
+            case SimpleGestureFilter.SWIPE_RIGHT :
                 danny.setX(danny.getX() + 50);
                 break;
-            case SimpleGestureFilter.SWIPE_LEFT :  str = "Swipe Left";
+            case SimpleGestureFilter.SWIPE_LEFT :
                 danny.setX(danny.getX() - 50);
                 break;
-            case SimpleGestureFilter.SWIPE_DOWN :  str = "Swipe Down";
+            case SimpleGestureFilter.SWIPE_DOWN :
                 danny.setY(danny.getY() + 50);
                 break;
-            case SimpleGestureFilter.SWIPE_UP :    str = "Swipe Up";
+            case SimpleGestureFilter.SWIPE_UP :
                 danny.setY(danny.getY() - 50);
                 break;
 
         }
-        Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
+   //     Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
     }
 
     @Override
