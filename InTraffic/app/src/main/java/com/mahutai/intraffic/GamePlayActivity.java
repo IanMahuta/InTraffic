@@ -3,8 +3,10 @@ package com.mahutai.intraffic;
 import android.app.Activity;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
+import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
+import android.view.Display;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.Gallery;
@@ -13,12 +15,15 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.graphics.drawable.Drawable;
 
+import java.util.ArrayList;
 
 
 public class GamePlayActivity extends Activity implements SimpleGestureFilter.SimpleGestureListener{
 
     private SimpleGestureFilter detector;
     LinearLayout mLinearLayout;
+    ImageView danny;
+    ArrayList<ImageView> cars = new ArrayList<ImageView>();
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,25 +36,98 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         detector.setSwipeMinVelocity(20);
 
         mLinearLayout = new LinearLayout(this);
-/*
+        Resources res = this.getApplicationContext().getResources();
+        Drawable dannyImage = res.getDrawable(R.drawable.danny);
+        Drawable carImage = res.getDrawable(R.drawable.car);
+
         // Instantiate an ImageView and define its properties
-        ImageView i = new ImageView(this);
-        i.setImageResource(R.drawable.car);
-        i.setAdjustViewBounds(true); // set the ImageView bounds to match the Drawable's dimensions
-        i.setLayoutParams(new Gallery.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        int width = size.x;
+        int height = size.y;
+
+        danny = new ImageView(this);
+        danny.setImageDrawable(dannyImage);
+        danny.setAdjustViewBounds(true); // set the ImageView bounds to match the Drawable's dimensions
+        danny.setLayoutParams(new Gallery.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+        mLinearLayout.addView(danny);
+        danny.setX(0);
+        Drawable d = getResources().getDrawable(R.drawable.danny);
+
+        System.out.println("DANNY HEIGHT:                     " + d.getIntrinsicHeight());
+        System.out.println("frame height:                " + height);
+        danny.setY(height-d.getIntrinsicHeight());
+        for(int i = 0; i < 3; i++) {
+            ImageView car = new ImageView(this);
+            car.setImageDrawable(carImage);
+            car.setAdjustViewBounds(true); // set the ImageView bounds to match the Drawable's dimensions
+            car.setLayoutParams(new Gallery.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            cars.add(car);
+            mLinearLayout.addView(car);
+        }
 
         // Add the ImageView to the layout and set the layout as the content view
-        mLinearLayout.addView(i);
+
         setContentView(mLinearLayout);
-*/
+/*
         Bitmap b = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(b);
+        myImage.draw(c);*/
+        System.out.println("new thread");
+        new Thread(new Runnable() {
+            public void run() {
+                System.out.println("move cars");
+                moveCars(cars);
+            }
+        }).start();
+    }
 
-        Resources res = this.getApplicationContext().getResources();
-        Drawable myImage = res.getDrawable(R.drawable.car);
-        myImage.draw(c);
-
+    public void moveCars(ArrayList<ImageView> cars){
+        boolean hasCars = true;
+        System.out.println("in");
+        float previousTime = System.nanoTime();
+        int step = 10000000;
+        try {
+            System.out.println("sleep");
+            Thread.currentThread().sleep(step/1000000);
+        } catch(Exception e){
+            System.err.println("Error sleeping thread.");
+            e.printStackTrace();
+        }
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        int width = size.x;
+        int height = size.y;
+        while(hasCars) {
+            if (System.nanoTime() - previousTime > step) {
+                for (ImageView car : cars) {
+                    car.setY(car.getY() + 5);
+                    try {
+                        System.out.println("move sleep");
+                        Thread.currentThread().sleep(step / 1000000);
+                    } catch (Exception e) {
+                        System.err.println("Error sleeping thread.");
+                        e.printStackTrace();
+                    }
+                    if (car.getY() > height) {
+                        cars.remove(car);
+                        hasCars = !cars.isEmpty();
+                    }
+                }
+            }
+        }
+        try {
+            System.out.println("Thread return");
+            Thread.currentThread().interrupt();
+            return;
+        }catch(Exception e){
+            System.err.println("Error interrupting thread.");
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -65,12 +143,16 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         switch (direction) {
 
             case SimpleGestureFilter.SWIPE_RIGHT : str = "Swipe Right";
+                danny.setX(danny.getX() + 50);
                 break;
             case SimpleGestureFilter.SWIPE_LEFT :  str = "Swipe Left";
+                danny.setX(danny.getX() - 50);
                 break;
             case SimpleGestureFilter.SWIPE_DOWN :  str = "Swipe Down";
+                danny.setY(danny.getY() + 50);
                 break;
             case SimpleGestureFilter.SWIPE_UP :    str = "Swipe Up";
+                danny.setY(danny.getY() - 50);
                 break;
 
         }
