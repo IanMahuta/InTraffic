@@ -15,6 +15,7 @@ public class Car {
     public ImageView view;
     public Drawable image;
     public boolean gone = false;
+    public double waitTime = 0f;
 
     public Car(GamePlayActivity act, Drawable image){
         view = new ImageView(act);

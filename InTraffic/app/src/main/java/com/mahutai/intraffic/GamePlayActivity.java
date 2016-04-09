@@ -113,7 +113,6 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
             @Override
             public void run() {
                 System.out.println("move cars");
-                boolean hasCars = true;
                 System.out.println("in");
                 float previousTime = System.nanoTime();
 
@@ -123,11 +122,13 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
                     Car car = new Car(GamePlayActivity.this, carImage);
                     mLinearLayout.addView(car.view);
                     car.setX(car.getX() + 300 * i);
+                    car.setY(-500);
+                    car.gone = true;
+                    car.waitTime = Math.random() * 10000000000.0;
                     cars.add(car);
                 }
 
                 try {
-                    System.out.println("sleep");
                     Thread.currentThread().sleep(step/1000000);
                 } catch(Exception e){
                     System.err.println("Error sleeping thread.");
@@ -139,31 +140,33 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
                 int height = size.y;
                 float dannyX = danny.getX();
                 float dannyY = danny.getY();
-                while(hasCars && shouldContinue && !danny.hit) {
+                while(shouldContinue && !danny.hit) {
                     if (System.nanoTime() - previousTime > step) {
                         dannyX = danny.getX();
                         dannyY = danny.getY();
                         for (Car car : cars) {
-                            car.setY(car.getY() + 5);
-                            if((Math.abs(car.getY()-dannyY) < 350) &&(Math.abs(car.getX()-dannyX) < 125)) {
-                                danny.hit = true;
+                            if(car.waitTime > 0){
+                                car.waitTime -= step;
+                            }else if (car.gone){
+                                car.setY(-500);
+                                car.gone = false;
+                            }else{
+                                car.setY(car.getY() + 5);
+                                if ((Math.abs(car.getY() - dannyY) < 350) && (Math.abs(car.getX() - dannyX) < 125)) {
+                                    danny.hit = true;
+                                }
+                                try {
+                                    // System.out.println("move sleep");
+                                    Thread.currentThread().sleep(step / 1000000);
+                                } catch (Exception e) {
+                                    System.err.println("Error sleeping thread.");
+                                    e.printStackTrace();
+                                }
+                                if (car.getY() > height) {
+                                    car.gone = true;
+                                    car.waitTime = Math.random() * 10000000000.0;
+                                }
                             }
-                            try {
-                                // System.out.println("move sleep");
-                                Thread.currentThread().sleep(step / 1000000);
-                            } catch (Exception e) {
-                                System.err.println("Error sleeping thread.");
-                                e.printStackTrace();
-                            }
-                            if (car.getY() > height) {
-                                car.gone = true;
-                                System.out.println("GONE!");
-                            }
-                        }
-                       // hasCars = !cars.isEmpty();
-                        hasCars = false;
-                        for(Car car : cars){
-                            hasCars = !car.gone;
                         }
                     }
                 }
@@ -198,10 +201,7 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
     }
     @Override
     public void onSwipe(int direction) {
-        String str = "";
-        System.out.println("SWIPE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         switch (direction) {
-
             case SimpleGestureFilter.SWIPE_RIGHT :
                 danny.setX(danny.getX() + moveDistance);
                 break;
