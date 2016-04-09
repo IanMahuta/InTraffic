@@ -1,20 +1,24 @@
 package com.mahutai.intraffic;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.graphics.Point;
-import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.view.Display;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.Gallery;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 import android.graphics.drawable.Drawable;
+
+import com.mahutai.intraffic.util.Car;
+import com.mahutai.intraffic.util.Player;
 
 import java.util.ArrayList;
 
@@ -23,9 +27,25 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
 
     private SimpleGestureFilter detector;
     RelativeLayout mLinearLayout;
-    ImageView danny;
+
+    public Player danny;
+    Drawable dannyImage;
+    static int moveDistance = 75;
+
     ImageView road;
-    ArrayList<ImageView> cars = new ArrayList<ImageView>();
+
+    ArrayList<Car> cars;
+    Drawable carImage;
+    int startingCars = 3;
+    private Thread carThread;
+    private Runnable carRunnable;
+
+    boolean shouldContinue = true;
+    private Handler handler;
+    int step = 10000000;
+
+    boolean backPressed = false;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,8 +60,8 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         mLinearLayout = new RelativeLayout(this);
         Resources res = this.getApplicationContext().getResources();
         Drawable roadImage = res.getDrawable(R.drawable.road);
-        Drawable dannyImage = res.getDrawable(R.drawable.danny);
-        Drawable carImage = res.getDrawable(R.drawable.car);
+        dannyImage = res.getDrawable(R.drawable.danny);
+        carImage = res.getDrawable(R.drawable.car);
 
         // Instantiate an ImageView and define its properties
         Display display = getWindowManager().getDefaultDisplay();
@@ -57,88 +77,117 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         mLinearLayout.addView(road);
 
-        danny = new ImageView(this);
-        danny.setImageDrawable(dannyImage);
-        danny.setAdjustViewBounds(true); // set the ImageView bounds to match the Drawable's dimensions
-        danny.setLayoutParams(new Gallery.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        mLinearLayout.addView(danny);
-        danny.setX(0);
-        Drawable d = getResources().getDrawable(R.drawable.danny);
+        danny = new Player(GamePlayActivity.this, dannyImage);
+        mLinearLayout.addView(danny.view);
 
+        Drawable d = getResources().getDrawable(R.drawable.danny);
         System.out.println("DANNY HEIGHT:                     " + d.getIntrinsicHeight());
         System.out.println("frame height:                " + height);
-        danny.setY(height - d.getIntrinsicHeight());
-        for(int i = 0; i < 3; i++) {
-            ImageView car = new ImageView(this);
-            car.setImageDrawable(carImage);
-            car.setAdjustViewBounds(true); // set the ImageView bounds to match the Drawable's dimensions
-            car.setLayoutParams(new Gallery.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
-            cars.add(car);
-            mLinearLayout.addView(car);
-            car.setX(car.getX() + 300*i);
-        }
+        danny.setY(height - (d.getIntrinsicHeight() * 2));
+        danny.setX(width/2);
 
         // Add the ImageView to the layout and set the layout as the content view
 
         setContentView(mLinearLayout);
-/*
-        Bitmap b = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(b);
-        myImage.draw(c);*/
+
+        handler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                if(!backPressed) {
+                    if (msg.what == 0) {
+                        Toast.makeText(GamePlayActivity.this, "You are dead!  Don't play in traffic.", Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(GamePlayActivity.this, "I didn't spawn any more cars.", Toast.LENGTH_SHORT).show();
+                    }
+                    Intent i = new Intent(GamePlayActivity.this, MainActivity.class);
+                    startActivity(i);
+                    finish();
+                }
+                super.handleMessage(msg);
+            }
+
+        };
+
         System.out.println("new thread");
-        new Thread(new Runnable() {
+        carRunnable = new Runnable() {
+            @Override
             public void run() {
                 System.out.println("move cars");
-                moveCars(cars);
-            }
-        }).start();
-    }
+                boolean hasCars = true;
+                System.out.println("in");
+                float previousTime = System.nanoTime();
 
-    public void moveCars(ArrayList<ImageView> cars){
-        boolean hasCars = true;
-        System.out.println("in");
-        float previousTime = System.nanoTime();
-        int step = 10000000;
-        try {
-            System.out.println("sleep");
-            Thread.currentThread().sleep(step/1000000);
-        } catch(Exception e){
-            System.err.println("Error sleeping thread.");
-            e.printStackTrace();
-        }
-        Display display = getWindowManager().getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-        int width = size.x;
-        int height = size.y;
-        while(hasCars) {
-            if (System.nanoTime() - previousTime > step) {
-                for (ImageView car : cars) {
-                    car.setY(car.getY() + 5);
-                    try {
-                        System.out.println("move sleep");
-                        Thread.currentThread().sleep(step / 1000000);
-                    } catch (Exception e) {
-                        System.err.println("Error sleeping thread.");
-                        e.printStackTrace();
-                    }
-                    if (car.getY() > height) {
-                      //  cars.remove(car);
-                     //   hasCars = !cars.isEmpty();
+                // spawn starting cars
+                cars = new ArrayList<Car>();
+                for(int i = 0; i < startingCars; i++) {
+                    Car car = new Car(GamePlayActivity.this, carImage);
+                    mLinearLayout.addView(car.view);
+                    car.setX(car.getX() + 300 * i);
+                    cars.add(car);
+                }
+
+                try {
+                    System.out.println("sleep");
+                    Thread.currentThread().sleep(step/1000000);
+                } catch(Exception e){
+                    System.err.println("Error sleeping thread.");
+                    e.printStackTrace();
+                }
+                Display display = getWindowManager().getDefaultDisplay();
+                Point size = new Point();
+                display.getSize(size);
+                int height = size.y;
+                float dannyX = danny.getX();
+                float dannyY = danny.getY();
+                while(hasCars && shouldContinue && !danny.hit) {
+                    if (System.nanoTime() - previousTime > step) {
+                        dannyX = danny.getX();
+                        dannyY = danny.getY();
+                        for (Car car : cars) {
+                            car.setY(car.getY() + 5);
+                            if((Math.abs(car.getY()-dannyY) < 350) &&(Math.abs(car.getX()-dannyX) < 125)) {
+                                danny.hit = true;
+                            }
+                            try {
+                                // System.out.println("move sleep");
+                                Thread.currentThread().sleep(step / 1000000);
+                            } catch (Exception e) {
+                                System.err.println("Error sleeping thread.");
+                                e.printStackTrace();
+                            }
+                            if (car.getY() > height) {
+                                car.gone = true;
+                                System.out.println("GONE!");
+                            }
+                        }
+                       // hasCars = !cars.isEmpty();
+                        hasCars = false;
+                        for(Car car : cars){
+                            hasCars = !car.gone;
+                        }
                     }
                 }
+                cars.clear();
+                try {
+                    System.out.println("Thread return");
+                    Message msg = Message.obtain();
+                    if(danny.hit) {
+                        msg.what = 0;
+                        handler.sendMessage(msg);
+                    }else{
+                        msg.what = 1;
+                        handler.sendMessage(msg);
+                    }
+                    return;
+                }catch(Exception e){
+                    System.err.println("Error interrupting thread.");
+                    e.printStackTrace();
+                }
             }
-        }
-        try {
-            System.out.println("Thread return");
-            Thread.currentThread().interrupt();
-            return;
-        }catch(Exception e){
-            System.err.println("Error interrupting thread.");
-            e.printStackTrace();
-        }
+        };
+        carThread = new Thread(carRunnable);
+        shouldContinue = true;
+        carThread.start();
     }
 
     @Override
@@ -154,25 +203,46 @@ public class GamePlayActivity extends Activity implements SimpleGestureFilter.Si
         switch (direction) {
 
             case SimpleGestureFilter.SWIPE_RIGHT :
-                danny.setX(danny.getX() + 50);
+                danny.setX(danny.getX() + moveDistance);
                 break;
             case SimpleGestureFilter.SWIPE_LEFT :
-                danny.setX(danny.getX() - 50);
+                danny.setX(danny.getX() - moveDistance);
                 break;
             case SimpleGestureFilter.SWIPE_DOWN :
-                danny.setY(danny.getY() + 50);
+                danny.setY(danny.getY() + moveDistance);
                 break;
             case SimpleGestureFilter.SWIPE_UP :
-                danny.setY(danny.getY() - 50);
+                danny.setY(danny.getY() - moveDistance);
                 break;
 
         }
-   //     Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onDoubleTap() {
         Toast.makeText(this, "Double Tap", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if ((keyCode == KeyEvent.KEYCODE_BACK)) {
+            shouldContinue = false;
+            backPressed = true;
+            try {
+                Thread.currentThread().sleep(2*step / 1000000);
+                carThread.interrupt();
+                handler.removeCallbacks(carRunnable);
+                System.out.println("Dissapear");
+                for(Car car : cars){
+                    car.setVisible(false);
+                }
+                cars.clear();
+            } catch (Exception e) {
+                System.err.println("Error closing thread.");
+                e.printStackTrace();
+            }
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
 }

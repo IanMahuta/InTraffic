@@ -20,7 +20,8 @@
             android:name=".GamePlayActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/title_activity_game_play"
-            android:theme = "@style/NoActionBar" >
+            android:theme = "@style/NoActionBar"
+            android:scaleType="centerInside">
           <!--  android:theme="@android:style/Theme.NoTitleBar" -->
 
         </activity>
